@@ -49,9 +49,10 @@ def main(argv: list[str] | None = None) -> int:
             args.name,
             args.personality,
             description=args.description,
-            photo_paths=tuple(args.photo),
             interaction_summaries=tuple(args.interaction_summary),
         )
+        if args.photo:
+            profile = store.import_assets(profile, tuple(args.photo))
         store.save(profile)
         print(profile.id)
         return 0

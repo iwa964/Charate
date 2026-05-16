@@ -15,7 +15,7 @@ class LocalProfileStore:
     """Persist profiles, assets, and distilled memories on the user's machine."""
 
     def __init__(self, root: str | Path) -> None:
-        self.root = Path(root).expanduser()
+        self.root = Path(root).expanduser().resolve()
         self.root.mkdir(parents=True, exist_ok=True)
 
     def save(self, profile: CharacterProfile, memory: LocalMemory | None = None) -> Path:

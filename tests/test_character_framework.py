@@ -57,3 +57,38 @@ def test_store_round_trips_profile_and_distilled_memory(tmp_path) -> None:
     assert loaded_memory.context() == "- User prefers concise check-ins."
     raw = json.loads(profile_path.read_text(encoding="utf-8"))
     assert raw["memory"][0]["summary"] == "User prefers concise check-ins."
+
+
+def test_cli_import_copies_photos_into_profile_store(tmp_path, monkeypatch, capsys) -> None:
+    from charate.cli import main
+
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    photo = source_dir / "rune.png"
+    photo.write_bytes(b"fake image bytes")
+    store_dir = tmp_path / "profiles"
+
+    monkeypatch.chdir(source_dir)
+
+    assert main(
+        [
+            "--store",
+            str(store_dir),
+            "import",
+            "--name",
+            "Rune",
+            "--personality",
+            "Quiet guardian.",
+            "--photo",
+            "./rune.png",
+        ]
+    ) == 0
+
+    profile_id = capsys.readouterr().out.strip()
+    profile, _ = LocalProfileStore(store_dir).load(profile_id)
+
+    assert len(profile.assets) == 1
+    copied_photo = store_dir / profile_id / "assets" / "rune.png"
+    assert copied_photo.read_bytes() == b"fake image bytes"
+    assert profile.assets[0].path == str(copied_photo)
+    assert profile.assets[0].path != "./rune.png"
