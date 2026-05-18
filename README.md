@@ -48,6 +48,23 @@ charate import \
   --interaction-summary "Trusts the user after a long journey."
 ```
 
+## Settings and languages
+
+Charate includes local settings for future app pages. The top-level settings page
+contains a Language page where users can choose one language for software text
+and another for character responses. Settings are saved beside the local profile
+store rather than sent to a service.
+
+```bash
+charate settings show
+charate settings language --software es --characters es
+charate say <profile-id> "hello"
+```
+
+The built-in fallback response model uses the character-response language for its
+local canned output and adds the same language instruction to the prompt context
+for pluggable response models.
+
 ## Optional extensions
 
 Desktop-pet extras are intentionally separate from the core framework. The

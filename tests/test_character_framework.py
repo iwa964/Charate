@@ -92,3 +92,76 @@ def test_cli_import_copies_photos_into_profile_store(tmp_path, monkeypatch, caps
     assert copied_photo.read_bytes() == b"fake image bytes"
     assert profile.assets[0].path == str(copied_photo)
     assert profile.assets[0].path != "./rune.png"
+
+
+def test_language_page_updates_software_and_character_languages() -> None:
+    from charate.settings import AppSettings, LanguagePage, SettingsPage
+
+    settings = AppSettings()
+    updated = LanguagePage(settings).apply(
+        interface_language="Spanish",
+        character_output_language="es",
+    )
+
+    assert updated.interface_language == "es"
+    assert updated.character_output_language == "es"
+    assert LanguagePage(updated).title == "Idioma"
+    assert SettingsPage(updated).entries == ("Idioma: Spanish",)
+
+
+def test_store_persists_language_settings(tmp_path) -> None:
+    from charate.settings import AppSettings
+
+    store = LocalProfileStore(tmp_path)
+    path = store.save_settings(AppSettings(interface_language="fr", character_output_language="es"))
+
+    assert path == tmp_path / "settings.json"
+    assert store.load_settings().interface_language_name == "French"
+    assert store.load_settings().character_output_language_name == "Spanish"
+
+
+def test_agent_uses_character_output_language_in_prompt_and_response() -> None:
+    profile = CharacterProfile.create("Luz", "Warm and bright.")
+    agent = CharacterAgent(profile, output_language="es")
+
+    assert "Reply to the user in Spanish." in agent.prompt_context()
+    assert "Me alegra" in agent.respond("hello")
+
+
+def test_custom_response_model_receives_language_prompt_context() -> None:
+    class CapturingResponseModel:
+        prompt_context = ""
+
+        def generate(self, profile: CharacterProfile, user_input: str, prompt_context: str = "") -> str:
+            self.prompt_context = prompt_context
+            return f"{profile.name}: captured"
+
+    profile = CharacterProfile.create("Sol", "Thoughtful and calm.")
+    model = CapturingResponseModel()
+    agent = CharacterAgent(profile, response_model=model, output_language="es")
+
+    assert agent.respond("hello", memory_summary="User likes gentle replies.") == "Sol: captured"
+    assert "Reply to the user in Spanish." in model.prompt_context
+    assert "- User likes gentle replies." in model.prompt_context
+    assert "hello" not in model.prompt_context
+
+
+def test_cli_language_settings_affect_character_output(tmp_path, capsys) -> None:
+    from charate.cli import main
+
+    store_dir = tmp_path / "profiles"
+    assert main(
+        ["--store", str(store_dir), "settings", "language", "--software", "es", "--characters", "es"]
+    ) == 0
+    settings_output = capsys.readouterr().out
+    assert "Idioma" in settings_output
+    assert "Characters: Spanish (es)" in settings_output
+
+    assert main(
+        ["--store", str(store_dir), "create", "--name", "Luz", "--personality", "Warm and bright."]
+    ) == 0
+    profile_id = capsys.readouterr().out.strip()
+
+    assert main(["--store", str(store_dir), "say", profile_id, "hello"]) == 0
+    response = capsys.readouterr().out
+    assert "Me alegra" in response
