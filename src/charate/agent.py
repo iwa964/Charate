@@ -7,6 +7,7 @@ from typing import Protocol
 from charate.memory import LocalMemory, MemoryRecord
 from charate.profile import CharacterProfile
 from charate.response import RuleBasedCharacterModel
+from charate.settings import language_instruction, normalize_language
 
 
 class ResponseModel(Protocol):
@@ -30,10 +31,12 @@ class CharacterAgent:
         *,
         memory: LocalMemory | None = None,
         response_model: ResponseModel | None = None,
+        output_language: str = "en",
     ) -> None:
         self.profile = profile
         self.memory = memory or LocalMemory()
-        self.response_model = response_model or RuleBasedCharacterModel()
+        self.output_language = normalize_language(output_language)
+        self.response_model = response_model or RuleBasedCharacterModel(output_language=self.output_language)
 
     def respond(self, user_input: str, *, memory_summary: str | None = None) -> str:
         if not user_input.strip():
@@ -47,6 +50,7 @@ class CharacterAgent:
 
     def prompt_context(self) -> str:
         memory_context = self.memory.context()
+        language_context = language_instruction(self.output_language)
         if not memory_context:
-            return self.profile.system_prompt()
-        return f"{self.profile.system_prompt()}\nLocal distilled memories:\n{memory_context}"
+            return f"{self.profile.system_prompt()}\n{language_context}"
+        return f"{self.profile.system_prompt()}\n{language_context}\nLocal distilled memories:\n{memory_context}"

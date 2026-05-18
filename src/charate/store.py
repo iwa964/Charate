@@ -9,6 +9,7 @@ from typing import Any
 
 from charate.memory import LocalMemory
 from charate.profile import CharacterProfile, ImportedAsset
+from charate.settings import AppSettings
 
 
 class LocalProfileStore:
@@ -17,6 +18,20 @@ class LocalProfileStore:
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root).expanduser().resolve()
         self.root.mkdir(parents=True, exist_ok=True)
+
+    def settings_path(self) -> Path:
+        return self.root / "settings.json"
+
+    def save_settings(self, settings: AppSettings) -> Path:
+        path = self.settings_path()
+        path.write_text(json.dumps(settings.to_dict(), indent=2, sort_keys=True), encoding="utf-8")
+        return path
+
+    def load_settings(self) -> AppSettings:
+        path = self.settings_path()
+        if not path.exists():
+            return AppSettings()
+        return AppSettings.from_dict(json.loads(path.read_text(encoding="utf-8")))
 
     def save(self, profile: CharacterProfile, memory: LocalMemory | None = None) -> Path:
         profile_dir = self._profile_dir(profile.id)

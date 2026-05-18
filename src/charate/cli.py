@@ -7,6 +7,7 @@ from pathlib import Path
 
 from charate.agent import CharacterAgent
 from charate.profile import CharacterProfile
+from charate.settings import LanguagePage, SettingsPage
 from charate.store import LocalProfileStore
 
 
@@ -31,6 +32,15 @@ def build_parser() -> argparse.ArgumentParser:
     chat.add_argument("profile_id")
     chat.add_argument("message")
     chat.add_argument("--memory-summary", default=None)
+
+    settings = subcommands.add_parser("settings", help="Open local settings pages.")
+    settings_subcommands = settings.add_subparsers(dest="settings_command", required=True)
+
+    settings_subcommands.add_parser("show", help="Show the settings page.")
+
+    language = settings_subcommands.add_parser("language", help="Show or update language settings.")
+    language.add_argument("--software", help="Language code or name for Charate software text.")
+    language.add_argument("--characters", help="Language code or name for character responses.")
     return parser
 
 
@@ -59,10 +69,32 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "say":
         profile, memory = store.load(args.profile_id)
-        agent = CharacterAgent(profile, memory=memory)
+        settings = store.load_settings()
+        agent = CharacterAgent(profile, memory=memory, output_language=settings.character_output_language)
         print(agent.respond(args.message, memory_summary=args.memory_summary))
         store.save(profile, agent.memory)
         return 0
+
+    if args.command == "settings":
+        settings = store.load_settings()
+        if args.settings_command == "show":
+            page = SettingsPage(settings)
+            print(page.title)
+            for entry in page.entries:
+                print(f"- {entry}")
+            return 0
+
+        if args.settings_command == "language":
+            page = LanguagePage(settings)
+            if args.software or args.characters:
+                settings = page.apply(interface_language=args.software, character_output_language=args.characters)
+                store.save_settings(settings)
+                page = LanguagePage(settings)
+            print(page.title)
+            print(f"Software: {settings.interface_language_name} ({settings.interface_language})")
+            print(f"Characters: {settings.character_output_language_name} ({settings.character_output_language})")
+            print("Available: " + ", ".join(f"{option['name']} ({option['code']})" for option in page.options))
+            return 0
 
     raise AssertionError(f"unhandled command: {args.command}")
 
