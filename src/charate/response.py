@@ -18,11 +18,11 @@ class RuleBasedCharacterModel:
 
     output_language: str = "en"
 
-    def generate(self, profile: CharacterProfile, user_input: str, memory_context: str = "") -> str:
+    def generate(self, profile: CharacterProfile, user_input: str, prompt_context: str = "") -> str:
         tone_hint = profile.personality.split(".")[0].strip() or profile.personality
         memory_line = (
-            f" {_localized_response(self.output_language, 'memory_label')}: {memory_context.splitlines()[0].lstrip('- ')}"
-            if memory_context
+            f" {_localized_response(self.output_language, 'memory_label')}: {memory_summary}"
+            if (memory_summary := _first_memory_summary(prompt_context))
             else ""
         )
         return f"{profile.name}: {tone_hint}. {self._respond_to(user_input)}{memory_line}"
@@ -108,3 +108,11 @@ _LOCALIZED_RESPONSES: dict[str, dict[str, str]] = {
 def _localized_response(language: str, intent: str) -> str:
     code = normalize_language(language)
     return _LOCALIZED_RESPONSES.get(code, _LOCALIZED_RESPONSES["en"])[intent]
+
+
+def _first_memory_summary(prompt_context: str) -> str:
+    for line in prompt_context.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            return stripped.removeprefix("- ")
+    return ""

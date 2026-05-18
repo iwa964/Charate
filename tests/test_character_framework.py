@@ -128,6 +128,24 @@ def test_agent_uses_character_output_language_in_prompt_and_response() -> None:
     assert "Me alegra" in agent.respond("hello")
 
 
+def test_custom_response_model_receives_language_prompt_context() -> None:
+    class CapturingResponseModel:
+        prompt_context = ""
+
+        def generate(self, profile: CharacterProfile, user_input: str, prompt_context: str = "") -> str:
+            self.prompt_context = prompt_context
+            return f"{profile.name}: captured"
+
+    profile = CharacterProfile.create("Sol", "Thoughtful and calm.")
+    model = CapturingResponseModel()
+    agent = CharacterAgent(profile, response_model=model, output_language="es")
+
+    assert agent.respond("hello", memory_summary="User likes gentle replies.") == "Sol: captured"
+    assert "Reply to the user in Spanish." in model.prompt_context
+    assert "- User likes gentle replies." in model.prompt_context
+    assert "hello" not in model.prompt_context
+
+
 def test_cli_language_settings_affect_character_output(tmp_path, capsys) -> None:
     from charate.cli import main
 

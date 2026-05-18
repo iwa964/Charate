@@ -13,8 +13,8 @@ from charate.settings import language_instruction, normalize_language
 class ResponseModel(Protocol):
     """Protocol for local or user-configured LLM adapters."""
 
-    def generate(self, profile: CharacterProfile, user_input: str, memory_context: str = "") -> str:
-        """Generate a character response without persisting raw user input."""
+    def generate(self, profile: CharacterProfile, user_input: str, prompt_context: str = "") -> str:
+        """Generate a character response from profile and non-verbatim prompt context."""
 
 
 class CharacterAgent:
@@ -43,7 +43,7 @@ class CharacterAgent:
             raise ValueError("user input is required")
         if memory_summary and memory_summary.strip():
             self.remember(memory_summary, tags=("conversation-derived",))
-        return self.response_model.generate(self.profile, user_input, self.memory.context())
+        return self.response_model.generate(self.profile, user_input, self.prompt_context())
 
     def remember(self, summary: str, *, importance: int = 1, tags: tuple[str, ...] = ()) -> MemoryRecord:
         return self.memory.remember(summary, importance=importance, tags=tags)
